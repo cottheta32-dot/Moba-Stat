@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MOBA Match Architect</title>
+    <link rel="manifest" href="manifest.json">
+    <style>
+        :root { --ally: #00c853; --enemy: #ff1744; --bg: #0d1117; --card: #161b22; --gold: #ffc107; --text: #c9d1d9; }
+        body { font-family: 'Segoe UI', sans-serif; background: var(--bg); color: var(--text); padding: 20px; margin: 0; }
+        .container { max-width: 1000px; margin: 0 auto; }
+        header { text-align: center; border-bottom: 1px solid #333; padding-bottom: 20px; margin-bottom: 20px; }
+        .scoreboard { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+        @media (max-width: 800px) { .scoreboard { grid-template-columns: 1fr; } }
+        .team-card { background: var(--card); border-radius: 12px; padding: 15px; border-top: 5px solid; }
+        .ally { border-color: var(--ally); } .enemy { border-color: var(--enemy); }
+        table { width: 100%; border-collapse: collapse; }
+        th { font-size: 10px; color: #888; text-transform: uppercase; padding: 10px 5px; }
+        input { background: #0d1117; border: 1px solid #333; color: #fff; padding: 5px; width: 40px; border-radius: 4px; text-align: center; }
+        .hero-name { width: 80px; text-align: left; }
+        .mvp { background: var(--gold); color: #000; padding: 2px 5px; border-radius: 3px; font-size: 10px; font-weight: bold; }
+        .btn { background: #238636; color: white; border: none; padding: 10px 20px; border-radius: 6px; cursor: pointer; margin: 5px; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <header>
+        <h1>Match Architect</h1>
+        <p>Enter stats to see Efficiency & MVP</p>
+        <input type="number" id="matchTime" value="20" oninput="calculate()"> Mins
+        <button class="btn" onclick="clearData()" style="background:#da3633">Reset All</button>
+    </header>
+
+    <div class="scoreboard">
+        <div class="team-card ally">
+            <h2 style="color:var(--ally)">ALLIES</h2>
+            <table id="allyTable"></table>
+        </div>
+        <div class="team-card enemy">
+            <h2 style="color:var(--enemy)">ENEMIES</h2>
+            <table id="enemyTable"></table>
+        </div>
+    </div>
+</div>
+
+<script>
+    // Create rows
+    const sides = ['ally', 'enemy'];
+    sides.forEach(side => {
+        let html = `<tr><th>Hero</th><th>K/D/A</th><th>Gold</th><th>Grade</th></tr>`;
+        for(let i=0; i<5; i++) {
+            html += `<tr class="p-row" data-side="${side}">
+                <td><input type="text" class="hero hero-name" placeholder="Hero"></td>
+                <td><input type="number" class="k"> / <input type="number" class="d"> / <input type="number" class="a"></td>
+                <td><input type="number" class="gold" style="color:var(--gold)"></td>
+                <td class="grade">0.0</td>
+            </tr>`;
+        }
+        document.getElementById(side + 'Table').innerHTML = html;
+    });
+
+    function calculate() {
+        const time = document.getElementById('matchTime').value || 1;
+        let players = [];
+        document.querySelectorAll('.p-row').forEach(row => {
+            const k = +row.querySelector('.k').value || 0;
+            const d = +row.querySelector('.d').value || 0;
+            const a = +row.querySelector('.a').value || 0;
+            const score = (((k + (a * 0.7)) - (d * 0.9)) / (time / 10)) + 5.0;
+            const finalScore = Math.min(Math.max(score, 1.0), 15.0).toFixed(1);
+            row.querySelector('.grade').innerHTML = `<span class="score-val">${finalScore}</span> <span class="badge"></span>`;
+            players.push({ row, score: parseFloat(finalScore), side: row.dataset.side });
+            saveToLocal();
+        });
+
+        const mvpA = players.filter(p => p.side === 'ally').sort((a,b) => b.score - a.score)[0];
+        const mvpE = players.filter(p => p.side === 'enemy').sort((a,b) => b.score - a.score)[0];
+        players.forEach(p => {
+            if(p === mvpA) p.row.querySelector('.badge').innerHTML = '<span class="mvp">MVP</span>';
+            else if(p === mvpE) p.row.querySelector('.badge').innerHTML = '<span class="mvp" style="background:#b388ff">SVP</span>';
+            else p.row.querySelector('.badge').innerHTML = '';
+        });
+    }
+
+    function saveToLocal() {
+        const data = Array.from(document.querySelectorAll('.p-row')).map(row => ({
+            hero: row.querySelector('.hero').value,
+            k: row.querySelector('.k').value,
+            d: row.querySelector('.d').value,
+            a: row.querySelector('.a').value,
+            gold: row.querySelector('.gold').value
+        }));
+        localStorage.setItem('mobaMatch', JSON.stringify(data));
+    }
+
+    function loadData() {
+        const data = JSON.parse(localStorage.getItem('mobaMatch'));
+        if(!data) return;
+        document.querySelectorAll('.p-row').forEach((row, i) => {
+            row.querySelector('.hero').value = data[i].hero;
+            row.querySelector('.k').value = data[i].k;
+            row.querySelector('.d').value = data[i].d;
+            row.querySelector('.a').value = data[i].a;
+            row.querySelector('.gold').value = data[i].gold;
+        });
+        calculate();
+    }
+
+    function clearData() {
+        if(confirm("Clear all stats?")) {
+            localStorage.clear();
+            location.reload();
+        }
+    }
+
+    document.querySelectorAll('input').forEach(i => i.addEventListener('input', calculate));
+    window.onload = loadData;
+</script>
+</body>
+          </html>
+          
